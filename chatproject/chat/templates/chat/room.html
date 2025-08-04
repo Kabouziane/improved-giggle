@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chat Room</title>
+    <title>Chat Room - {{ room_name }}</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
         #chat-container { max-width: 800px; margin: 50px auto; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); overflow: hidden; }
@@ -10,24 +10,84 @@
         #messages li:nth-child(odd) { background: #f1f1f1; }
         #messages li strong { color: #007bff; }
         form { display: flex; padding: 20px; }
-        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-right: 5px; }
         button { padding: 10px 20px; border: none; background: #007bff; color: #fff; border-radius: 5px; cursor: pointer; }
         button:hover { background: #0056b3; }
+        #connection-status { padding: 10px; text-align: center; font-weight: bold; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
     <div id="chat-container">
+        <div id="connection-status" class="disconnected">Connecting...</div>
+        <h2 style="text-align: center; margin: 10px 0;">Room: {{ room_name }}</h2>
         <ul id="messages">
             {% for message in messages %}
                 <li><strong>{{ message.username }}</strong>: {{ message.content }}</li>
             {% endfor %}
         </ul>
-        <form method="post">
-            {% csrf_token %}
-            <input type="text" name="username" placeholder="Your name">
-            <input type="text" name="content" placeholder="Your message">
+        <form id="chat-form">
+            <input type="text" id="username" placeholder="Your name" required>
+            <input type="text" id="message" placeholder="Your message" required>
             <button type="submit">Send</button>
         </form>
     </div>
+
+    <script>
+        const roomName = "{{ room_name }}";
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
+        );
+
+        const connectionStatus = document.getElementById('connection-status');
+        const messagesList = document.getElementById('messages');
+        const chatForm = document.getElementById('chat-form');
+        const usernameInput = document.getElementById('username');
+        const messageInput = document.getElementById('message');
+
+        // Gestion de la connexion WebSocket
+        chatSocket.onopen = function(e) {
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'connected';
+        };
+
+        chatSocket.onclose = function(e) {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'disconnected';
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const messageElement = document.createElement('li');
+            messageElement.innerHTML = `<strong>${data.username}</strong>: ${data.message}`;
+            messagesList.appendChild(messageElement);
+            messagesList.scrollTop = messagesList.scrollHeight;
+        };
+
+        // Envoi des messages
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = usernameInput.value.trim();
+            const message = messageInput.value.trim();
+            
+            if (username && message) {
+                chatSocket.send(JSON.stringify({
+                    'message': message,
+                    'username': username
+                }));
+                messageInput.value = '';
+            }
+        });
+
+        // Focus sur le champ message après l'envoi
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
 </body>
 </html>
