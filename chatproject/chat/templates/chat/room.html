@@ -35,9 +35,9 @@
     </div>
 
     <script>
-        const roomName = "{{ room_name }}";
+        const roomName = "main";
         const chatSocket = new WebSocket(
-            'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
+            'ws://' + window.location.host + '/ws/chat/'
         );
 
         const connectionStatus = document.getElementById('connection-status');
